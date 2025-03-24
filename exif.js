@@ -92,7 +92,13 @@
 
         // other tags
         0xA005 : "InteroperabilityIFDPointer",
-        0xA420 : "ImageUniqueID"            // Identifier assigned uniquely to each image
+        0xA420 : "ImageUniqueID",            // Identifier assigned uniquely to each image
+
+        // 添加LensID标签支持
+        0xA432 : "LensSpecification",      // 镜头规格（最小焦距、最大焦距、最小光圈、最大光圈）
+        0xA433 : "LensMake",               // 镜头制造商
+        0xA434 : "LensModel",              // 镜头型号
+        0xA435 : "LensSerialNumber",       // 镜头序列号
     };
 
     var TiffTags = EXIF.TiffTags = {
@@ -1049,6 +1055,33 @@
     EXIF.readFromBinaryFile = function(file) {
         return findEXIFinJPEG(file);
     }
+
+    function getLensInfo(img) {
+      if (!imageHasData(img)) return {};
+      
+      var lensInfo = {
+        // 镜头相关信息
+        make: img.exifdata.LensMake,
+        model: img.exifdata.LensModel,
+        serialNumber: img.exifdata.LensSerialNumber,
+        specification: img.exifdata.LensSpecification,
+        focalLength: img.exifdata.FocalLength,
+        focalLengthIn35mm: img.exifdata.FocalLengthIn35mmFilm,
+        fNumber: img.exifdata.FNumber,
+        maxApertureValue: img.exifdata.MaxApertureValue,
+        // 额外相关信息
+        exposureTime: img.exifdata.ExposureTime,
+        iso: img.exifdata.ISOSpeedRatings,
+        exposureProgram: img.exifdata.ExposureProgram,
+        meteringMode: img.exifdata.MeteringMode,
+        flash: img.exifdata.Flash
+      };
+      
+      return lensInfo;
+    }
+
+    // 将函数添加到EXIF对象
+    EXIF.getLensInfo = getLensInfo;
 
     if (typeof define === 'function' && define.amd) {
         define('exif-js', [], function() {

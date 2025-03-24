@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>镜头信息测试</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    #result {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 15px;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      white-space: pre-wrap;
+    }
+    .image-container {
+      display: flex;
+      margin: 20px 0;
+      flex-wrap: wrap;
+    }
+    .image-container img {
+      max-width: 300px;
+      max-height: 300px;
+      margin-right: 20px;
+      margin-bottom: 20px;
+    }
+    .lens-info {
+      flex: 1;
+      min-width: 300px;
+    }
+    input[type="file"] {
+      margin: 20px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    button {
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <h1>照片镜头信息查看器</h1>
+  
+  <div>
+    <p>请选择一张包含EXIF信息的照片：</p>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+  
+  <div id="imageContainer"></div>
+  
+  <script src="exif.js"></script>
+  <script>
+    document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+    
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        const imageContainer = document.getElementById('imageContainer');
+        imageContainer.innerHTML = '';
+        
+        const container = document.createElement('div');
+        container.className = 'image-container';
+        
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'lens-info';
+        
+        container.appendChild(img);
+        container.appendChild(infoDiv);
+        imageContainer.appendChild(container);
+        
+        // 当图片加载完成后获取EXIF数据
+        img.onload = function() {
+          EXIF.getData(img, function() {
+            const lensInfo = EXIF.getLensInfo(this);
+            console.log('镜头信息:', lensInfo);
+            displayLensInfo(lensInfo, infoDiv);
+            
+            // 同时显示所有EXIF信息（可选）
+            const allTags = EXIF.getAllTags(this);
+            console.log('所有EXIF标签:', allTags);
+          });
+        };
+      };
+      
+      reader.readAsDataURL(file);
+    }
+    
+    function displayLensInfo(lensInfo, container) {
+      let html = '<h2>镜头信息</h2>';
+      html += '<table>';
+      html += '<tr><th>属性</th><th>值</th></tr>';
+      
+      const addRow = (label, value) => {
+        if (value !== undefined) {
+          let displayValue = value;
+          
+          // 处理特殊格式的值
+          if (typeof value === 'object' && value.numerator !== undefined) {
+            displayValue = `${value.numerator}/${value.denominator} (${value})`;
+          } else if (Array.isArray(value)) {
+            // 处理LensSpecification这样的数组值
+            displayValue = value.join(', ');
+          }
+          
+          html += `<tr><td>${label}</td><td>${displayValue}</td></tr>`;
+        }
+      };
+      
+      addRow('镜头制造商', lensInfo.make);
+      addRow('镜头型号', lensInfo.model);
+      addRow('镜头序列号', lensInfo.serialNumber);
+      addRow('镜头规格', lensInfo.specification);
+      addRow('焦距', lensInfo.focalLength);
+      addRow('35mm等效焦距', lensInfo.focalLengthIn35mm);
+      addRow('光圈值 (F值)', lensInfo.fNumber);
+      addRow('最大光圈值', lensInfo.maxApertureValue);
+      addRow('曝光时间', lensInfo.exposureTime);
+      addRow('ISO', lensInfo.iso);
+      addRow('曝光程序', lensInfo.exposureProgram);
+      addRow('测光模式', lensInfo.meteringMode);
+      addRow('闪光灯', lensInfo.flash);
+      
+      html += '</table>';
+      
+      // 添加一个显示所有EXIF标签的部分
+      html += '<h3>所有EXIF标签</h3>';
+      html += '<p>请在浏览器控制台中查看完整的EXIF数据</p>';
+      html += '<button id="showAllTags">显示所有EXIF标签</button>';
+      html += '<div id="allTagsContainer" style="display:none;margin-top:15px;max-height:300px;overflow:auto;"></div>';
+      
+      container.innerHTML = html;
+      
+      // 为"显示所有EXIF标签"按钮添加事件监听器
+      document.getElementById('showAllTags').addEventListener('click', function() {
+        const allTagsContainer = document.getElementById('allTagsContainer');
+        
+        if (allTagsContainer.style.display === 'none') {
+          // 获取所有EXIF标签并显示
+          EXIF.getData(document.querySelector('.image-container img'), function() {
+            const allTags = EXIF.getAllTags(this);
+            let tagsHtml = '<table>';
+            tagsHtml += '<tr><th>标签名</th><th>值</th></tr>';
+            
+            for (const tag in allTags) {
+              let value = allTags[tag];
+              
+              // 格式化显示值
+              if (typeof value === 'object' && value.numerator !== undefined) {
+                value = `${value.numerator}/${value.denominator} (${value})`;
+              } else if (Array.isArray(value)) {
+                value = value.join(', ');
+              }
+              
+              tagsHtml += `<tr><td>${tag}</td><td>${value}</td></tr>`;
+            }
+            
+            tagsHtml += '</table>';
+            allTagsContainer.innerHTML = tagsHtml;
+          });
+          
+          allTagsContainer.style.display = 'block';
+          this.textContent = '隐藏所有EXIF标签';
+        } else {
+          allTagsContainer.style.display = 'none';
+          this.textContent = '显示所有EXIF标签';
+        }
+      });
+    }
+  </script>
+</body>
+</html> 
